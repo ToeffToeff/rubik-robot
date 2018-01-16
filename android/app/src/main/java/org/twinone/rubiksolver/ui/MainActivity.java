@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.ParcelUuid;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import org.twinone.rubiksolver.robot.RobotScheduler;
@@ -27,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getFragmentManager().beginTransaction().replace(android.R.id.content, new CameraFragment()).commit();
 
 
@@ -43,10 +45,11 @@ public class MainActivity extends AppCompatActivity {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         if (!mBluetoothAdapter.isEnabled()) {
-            Toast.makeText(this, "Enable Bluetooth and pair", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Enable Bluetooth and pair", Toast.LENGTH_LONG).show();
             return;
         }
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice("98:D3:31:30:3B:D8");
+        //BluetoothDevice device = mBluetoothAdapter.getRemoteDevice("98:D3:31:30:3B:D8");
+        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice("20:17:06:12:47:36");
         for (BluetoothDevice x : mBluetoothAdapter.getBondedDevices()) {
             Log.d("Main", "Address: " + x.getAddress());
             for (ParcelUuid uuid : x.getUuids()) {

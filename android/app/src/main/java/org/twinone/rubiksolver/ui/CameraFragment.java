@@ -2,6 +2,7 @@ package org.twinone.rubiksolver.ui;
 
 import android.Manifest;
 import android.app.Fragment;
+import android.bluetooth.BluetoothAdapter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -52,6 +53,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Fa
     //TODO: acquire screen lock while solving
     //TODO: rotate from start
 
+    private BluetoothAdapter mBluetoothAdapter;
+
     private static final boolean DBG = false;
     private static final String DBG_STATE = CubeWebView.STATE_SOLVED;
     private static final String TAG = "CameraFragment";
@@ -64,6 +67,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Fa
     private TextView[][] mCapturedSquares = new TextView[MainActivity.SIZE][MainActivity.SIZE];
     private FaceCapturer mFaceCapturer;
     private Button mButtonGrip;
+    private Button mButtonUngrip;
     private Button mButtonSolve;
     private Button mButtonFlash;
     private CubeWebView mCube;
@@ -93,10 +97,15 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Fa
         mButtonFlash = (Button) mRootView.findViewById(R.id.button_flash);
         mButtonFlash.setOnClickListener(this);
 
-        setupSquares();
-
         mButtonSolve = (Button) mRootView.findViewById(R.id.button_solve);
+        mButtonSolve.setEnabled(false);
         mButtonSolve.setOnClickListener(this);
+
+        mButtonUngrip = (Button) mRootView.findViewById(R.id.button_ungrip);
+        mButtonUngrip.setEnabled(false);
+        mButtonUngrip.setOnClickListener(this);
+
+        setupSquares();
 
         new Handler().post(new Runnable() {
             @Override
@@ -204,6 +213,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Fa
     public void onStart() {
         super.onStart();
         if (mFaceCapturer != null) mFaceCapturer.start();
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
     }
 
     @Override
@@ -243,18 +253,52 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Fa
         switch (v.getId()) {
             case R.id.button_grip:
                 startGrip();
+                toggleButtons();
                 break;
             case R.id.button_flash:
                 mFaceCapturer.setFlash(!mFlashEnabled);
                 mFlashEnabled = !mFlashEnabled;
                 break;
             case R.id.button_solve:
+                startScan();
+                toggleButtons();
+                break;
+            case R.id.button_ungrip:
+                unGrip();
+                toggleButtons();
+                break;
+        }
+
+    }
+
+    private void toggleButtons() {
+        switch (mGrippedAxis) {
+            case 0:
+                mButtonUngrip.setEnabled(false);
+                mButtonSolve.setEnabled(false);
+                mButtonGrip.setEnabled(true);
+                break;
+            case 1:
+                mButtonUngrip.setEnabled(true);
+                mButtonSolve.setEnabled(false);
+                mButtonGrip.setEnabled(true);
+                break;
+            case 2:
+                mButtonGrip.setEnabled(false);
+                mButtonSolve.setEnabled(true);
+                mButtonUngrip.setEnabled(true);
+                break;
+            default:
                 break;
         }
     }
 
     private void startGrip() {
-        if (mGrippedAxis >= 2) return;
+        if (mGrippedAxis >= 2 || mGrippedAxis < 0) return;
+        if (!mBluetoothAdapter.isEnabled()) {
+            Toast.makeText(getActivity(), "Enable bluetooth and pair...", Toast.LENGTH_LONG).show();
+            return;
+        }
 
         SimpleRobotMapper mapper = getMapper();
         List<Request> requests = new ArrayList<>();
@@ -266,15 +310,29 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Fa
 
         try {
             ((MainActivity) getActivity()).getRobotScheduler().put(requests, new RobotScheduler.ChunkAdapter() {
-                @Override
-                public void chunkComplete() {
-                    if (mGrippedAxis >= 2) mHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            startScan();
-                        }
-                    });
-                }
+            });
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void unGrip() {
+        if (mGrippedAxis > 2 || mGrippedAxis <= 0) return;
+        if (!mBluetoothAdapter.isEnabled()) {
+            Toast.makeText(getActivity(), "Enable bluetooth and pair...", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        SimpleRobotMapper mapper = getMapper();
+        List<Request> requests = new ArrayList<>();
+
+        Collections.addAll(requests, mapper.gripSide(mGrippedAxis-1, false, 0));
+        Collections.addAll(requests, mapper.gripSide(mGrippedAxis-1 + 2, false, 0));
+
+        mGrippedAxis--;
+
+        try {
+            ((MainActivity) getActivity()).getRobotScheduler().put(requests, new RobotScheduler.ChunkAdapter() {
             });
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -285,19 +343,38 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Fa
     public static final int[] SCANNED_ROTATION = new int[]{0, 0, 3, 1, 1, 0};
 
     public void startScan() {
-        mButtonGrip.setVisibility(View.GONE);
-        mButtonFlash.setVisibility(View.GONE);
+        try {
+            SimpleRobotMapper mapper = getMapper();
+            List<Request> requests = new ArrayList<>();
 
-        SimpleRobotMapper mapper = getMapper();
-        List<Request> requests = new ArrayList<>();
+            ((MainActivity) getActivity()).getRobotScheduler().put(requests, new RobotScheduler.ChunkAdapter() {
+                @Override
+                public void chunkComplete() {
+                    if (mGrippedAxis >= 2) mHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            mButtonGrip.setVisibility(View.GONE);
+                            mButtonFlash.setVisibility(View.GONE);
+                            mButtonUngrip.setVisibility(View.GONE);
+                            mButtonSolve.setVisibility(View.GONE);
 
-        // Ungrip Y
-        Collections.addAll(requests, mapper.gripAxis(true, false));
-        // Move X and Y to H (FIXME: parallellize)
-        Collections.addAll(requests, mapper.rotateAxis(true, 1));
-        Collections.addAll(requests, mapper.rotateAxis(false, 1));
+                            SimpleRobotMapper mapper = getMapper();
+                            List<Request> requests = new ArrayList<>();
 
-        executeAndScan(requests);
+                            // Ungrip Y
+                            Collections.addAll(requests, mapper.gripAxis(true, false));
+                            // Move X and Y to H (FIXME: parallellize)
+                            Collections.addAll(requests, mapper.rotateAxis(true, 1));
+                            Collections.addAll(requests, mapper.rotateAxis(false, 1));
+
+                            executeAndScan(requests);
+                        }
+                    });
+                }
+            });
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public void executeAndScan(List<Request> requests) {
