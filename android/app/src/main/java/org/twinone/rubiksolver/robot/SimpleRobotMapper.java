@@ -14,18 +14,14 @@ import java.util.List;
 public class SimpleRobotMapper {
 
     protected int[] calibrationOffset = {
-            132,  43,
-            146, 119,
-            97, 85,
-            156,  21,
+            //grip, rotation
+            //grip value: higher value = wider opened
+            //rotation value: higher value = turn to the right (looking on the gears)
+            132,  32,       //Motor Pair A: D5, D6
+            146, 98,       //Motor Pair B: D7, D8
+            97, 85,         //Motor Pair C: D9, D10
+            156,  21        //Motor Pair D: D11, D12
     };
-
-   /* protected int[] calibrationOffset = {
-            138,  43,
-            146, 119,
-            92, 133,
-            150,  24,
-    };*/
 
     // Gripper-specific
     protected int gripAngle = -5;

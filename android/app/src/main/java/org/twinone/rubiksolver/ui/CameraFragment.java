@@ -46,7 +46,6 @@ import java.util.List;
 @SuppressWarnings("deprecation")
 public class CameraFragment extends Fragment implements View.OnClickListener, FaceCapturer.Callback, CubeWebView.SolveCallback {
 
-    //TODO: separate button for gripping and scanning; also ungrip button
     //TODO: implement progress bar for solving and executing
     //TODO: verify state is solvable before attempting to solve
     //FIXME: preload webview

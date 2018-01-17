@@ -6,5 +6,6 @@
     <string name="flash">Flash</string>
     <string name="scan_amp_solve"><![CDATA[Scan & solve]]></string>
     <string name="grip">Grip</string>
+    <string name="ungrip">Ungrip</string>
     <string name="solve_cube">Solve Cube</string>
 </resources>
